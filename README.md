@@ -1,2 +1,3 @@
-# dayswon-hq
-DaysWon HQ
+# DaysWon HQ
+
+Private internal dashboard for DaysWon.

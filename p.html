@@ -10,7 +10,7 @@
 <meta property="og:description" content="Read it, download the PDF, and accept it online.">
 <meta property="og:site_name" content="DaysWon">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="proposal.css?v=6">
+<link rel="stylesheet" href="proposal.css?v=7">
 <style>body{margin:0;background:#eceef2;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif;color:#1b2540}
 .wrap{max-width:760px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top)) 14px calc(30px + env(safe-area-inset-bottom))}
 .msg{background:#fff;border-radius:14px;padding:30px 22px;text-align:center;color:#4a536b}
@@ -21,7 +21,7 @@
 .done{background:#e2f6ea;color:#0f5d2e;border-radius:12px;padding:14px}.note{background:#fff1dc;color:#7a4800;border-radius:12px;padding:14px}
 @media (max-width:520px){.wrap{padding-left:0;padding-right:0;padding-top:0}.dl{margin:14px 16px 0;width:calc(100% - 32px)}}</style>
 </head><body><div class="wrap" id="w"><div class="msg">Loading proposal…</div></div>
-<script src="proposal-view.js?v=6"></script>
+<script src="proposal-view.js?v=7"></script>
 <script>
 (function(){
 const FN = "https://xgxswoaxalhdfjjxelyt.supabase.co/functions/v1/api", PK = "sb_publishable_O0fqxMtqt9gwXlNnHwTFCg_eGNQoo7W";
@@ -53,7 +53,7 @@ async function load(state){
     } catch (x) { ae.textContent = x.message; b.disabled = false; b.textContent = "Accept proposal"; } };
   document.getElementById("dl").onclick = async () => { const b = document.getElementById("dl"); b.textContent = "Making PDF…";
     try { await new Promise((ok, no) => { if (window.PDFLib) return ok(); const s = document.createElement("script"); s.src = "pdf-lib.min.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
-      await new Promise((ok, no) => { if (window.DWPdf) return ok(); const s = document.createElement("script"); s.src = "proposal-pdf.js?v=6"; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+      await new Promise((ok, no) => { if (window.DWPdf) return ok(); const s = document.createElement("script"); s.src = "proposal-pdf.js?v=7"; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
       await DWPdf.share(P, biz, false); } catch (e) { alert("Couldn't make the PDF. Please try again."); } b.textContent = "Download PDF"; };
 }
 load("");

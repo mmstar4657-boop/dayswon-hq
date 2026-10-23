@@ -332,7 +332,7 @@ async function editor(el, id, withPrev, onChange) {
   if (pdel) pdel.onclick = async () => { if (!confirm("Delete this proposal? Its client link stops working.")) return; await api("/api/proposal/" + id, { method: "DELETE" }); PROPS = null; toast("Deleted"); location.hash = "#/proposals"; };
   const pdfb = el.querySelector("#pdfb");
   if (pdfb) pdfb.onclick = async () => { await save(); pdfb.disabled = true; const old = pdfb.innerHTML; pdfb.textContent = "Making PDF…";
-    try { await loadScript("pdf-lib.min.js"); await loadScript("proposal-pdf.js?v=6"); const f = await DWPdf.file(P, BIZ); const u = URL.createObjectURL(f);
+    try { await loadScript("pdf-lib.min.js"); await loadScript("proposal-pdf.js?v=7"); const f = await DWPdf.file(P, BIZ); const u = URL.createObjectURL(f);
       const canShare = navigator.canShare && navigator.canShare({ files: [f] });
       const s = sheet(`<h3>PDF ready</h3><p class="muted" style="margin:0;word-break:break-all">${esc(f.name)} · ${Math.round(f.size / 1024)} KB</p>${canShare ? `<button class="btn pri" id="shp">Share PDF…</button>` : ""}<a class="btn ${canShare ? "" : "pri"}" href="${u}" target="_blank" rel="noopener" id="opp">Open PDF</a><a class="btn" href="${u}" download="${esc(f.name)}" id="dlp">Download</a>`);
       const sh = s.querySelector("#shp"); if (sh) sh.onclick = async () => { try { await navigator.share({ files: [f], title: f.name }); } catch (e) { } };

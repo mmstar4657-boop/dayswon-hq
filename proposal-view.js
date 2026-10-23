@@ -4,7 +4,8 @@
   const usd = n => "$" + Number(n || 0).toLocaleString("en-US");
   const fmtLong = ymd => { if (!ymd) return ""; const [y, m, d] = String(ymd).slice(0, 10).split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }); };
   const lines = t => String(t || "").split(/\n/).map(s => s.trim()).filter(Boolean);
-  const pairs = t => lines(t).map(l => { const i = l.indexOf(":"); return i > 0 && i < 60 ? [l.slice(0, i).trim(), l.slice(i + 1).trim()] : ["", l]; });
+  const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+  const pairs = t => lines(t).map(l => { const i = l.indexOf(":"); return i > 0 && i < 60 ? [l.slice(0, i).trim(), cap(l.slice(i + 1).trim())] : ["", l]; });
   function text(t, terms) { let out = "", ul = false;
     for (const l of lines(t)) {
       if (/^[-•*]\s+/.test(l)) { if (!ul) { out += "<ul>"; ul = true; } out += "<li>" + H(l.replace(/^[-•*]\s+/, "")) + "</li>"; continue; }

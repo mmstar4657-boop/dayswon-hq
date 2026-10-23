@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0b1530">
+<title>Payment · DaysWon</title>
+<meta property="og:title" content="Payment to DaysWon">
+<meta property="og:description" content="Pay securely by card. No login needed.">
+<meta property="og:site_name" content="DaysWon">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+body{margin:0;background:#eceef2;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif;color:#1b2540}
+.wrap{max-width:520px;margin:0 auto;padding:calc(22px + env(safe-area-inset-top)) 14px calc(30px + env(safe-area-inset-bottom))}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;color:#0b1530;margin:4px 4px 14px}.brand img{width:30px;height:30px}.brand i{font-style:normal;color:#4f6bff}
+.card{background:#fff;border-radius:16px;padding:22px 20px;box-shadow:0 1px 2px rgba(11,21,48,.06)}
+.test{background:#fff1dc;color:#7a4800;border:1px solid #f1c98a;border-radius:12px;padding:10px 12px;font-size:13.5px;margin-bottom:12px}
+.lab{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#69728a}
+.amt{font-size:38px;font-weight:800;color:#0b1530;margin:2px 0 4px;letter-spacing:-.5px}.amt small{font-size:17px;font-weight:600;color:#69728a}
+.desc{font-size:16px;font-weight:600;margin:0}.meta{color:#4a536b;font-size:14px;margin-top:4px}
+dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:16px 0 0;font-size:14px;border-top:1px solid #eef0f4;padding-top:14px}dt{color:#69728a}dd{margin:0;text-align:right;font-weight:600}
+button{display:block;width:100%;margin-top:18px;padding:15px;border:0;border-radius:12px;background:#0b1530;color:#fff;font:inherit;font-weight:700;font-size:17px;cursor:pointer}button:disabled{opacity:.6}
+.ok{background:#e2f6ea;color:#0f5d2e;border-radius:12px;padding:14px;margin-top:16px}.note{background:#f3f4f7;color:#4a536b;border-radius:12px;padding:14px;margin-top:16px}.err{color:#c02a2f;margin-top:10px;font-size:14px}
+.sec{text-align:center;color:#69728a;font-size:12.5px;margin-top:12px}.foot{text-align:center;color:#69728a;font-size:13px;margin-top:18px}.foot a{color:#4f6bff;text-decoration:none}
+.msg{background:#fff;border-radius:14px;padding:30px 22px;text-align:center;color:#4a536b}
+</style></head><body><div class="wrap"><div class="brand"><img src="favicon.svg" alt=""><span>Days<i>Won</i></span></div><div id="w"><div class="msg">Loading…</div></div></div>
+<script>
+(function(){
+const FN = "https://xgxswoaxalhdfjjxelyt.supabase.co/functions/v1/api", PK = "sb_publishable_O0fqxMtqt9gwXlNnHwTFCg_eGNQoo7W";
+const tok = (location.hash || "").replace(/^#/, "").trim(), qs = new URLSearchParams(location.search);
+const w = document.getElementById("w");
+const H = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const usd = c => "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
+const day = s => { if (!s) return ""; const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }); };
+const msg = t => { w.innerHTML = '<div class="msg">' + H(t) + '</div>'; };
+async function load(){
+  if (!/^[A-Za-z0-9_-]{32}$/.test(tok)) return msg("This link isn't complete. Please open the full link you were sent.");
+  let r, d; try { r = await fetch(FN + "/pay/" + tok, { headers: { apikey: PK } }); d = await r.json(); } catch (e) { return msg("We couldn't load this payment. Please check your connection and try again."); }
+  if (!r.ok || !d.ok) return msg(d.error || "This payment link isn't valid.");
+  const p = d.pay, mon = p.kind === "monthly", b = p.biz || {};
+  document.title = (mon ? "Monthly payment" : "Payment") + " · " + (p.client || "DaysWon") + " · DaysWon";
+  let state = "";
+  if (qs.get("mock")) state = '<div class="note"><b>Practice checkout.</b> This app is in practice mode, so no Stripe payment page opened and nothing was charged.</div>';
+  else if (qs.get("paid") && (p.status === "paid" || p.status === "active")) state = '<div class="ok">✓ ' + (mon ? "Monthly payment is set up. Thank you!" : "Payment received. Thank you!") + '</div>';
+  else if (qs.get("paid")) state = '<div class="ok">✓ Thank you! Your payment is being confirmed. You can close this page.</div>';
+  else if (p.status === "paid") state = '<div class="ok">✓ This invoice is paid. Thank you!</div>';
+  else if (p.status === "void") state = '<div class="note">This invoice was cancelled. Please contact us if you have questions.</div>';
+  else if (mon && p.status === "active") state = '<div class="ok">✓ Monthly payment is set up' + (p.next_charge ? '. Next charge: ' + H(day(p.next_charge)) : '') + '.</div>';
+  else if (mon && p.status === "canceled") state = '<div class="note">This monthly plan was stopped. Please contact us if you have questions.</div>';
+  const first = mon ? (p.first_charge === "signup" ? "Today, when you sign up" : day(p.first_charge)) : "";
+  w.innerHTML = '<div class="card">' + (p.mode !== "live" ? '<div class="test"><b>TEST MODE</b> · practice payment, no real money. Test card: 4242 4242 4242 4242, any future date, any CVC.</div>' : '')
+    + '<div class="lab">' + (mon ? "Monthly service" : (p.status === "overdue" ? "Invoice · overdue" : "Invoice")) + (p.client ? " for " + H(p.client) : "") + '</div>'
+    + '<div class="amt">' + usd(p.amount_cents) + (mon ? ' <small>/ month</small>' : '') + '</div><p class="desc">' + H(p.description) + '</p>'
+    + '<dl>' + (p.project ? '<dt>Project</dt><dd>' + H(p.project) + '</dd>' : '') + (!mon && p.due_date ? '<dt>Due</dt><dd>' + H(day(p.due_date)) + '</dd>' : '') + (mon ? '<dt>First charge</dt><dd>' + H(first) + '</dd><dt>Then</dt><dd>Every month, cancel per your agreement</dd>' : '') + '<dt>To</dt><dd>DaysWon' + (b.name ? " · " + H(b.name) : "") + '</dd></dl>'
+    + state + (p.payable && !qs.get("paid") && !qs.get("mock") ? '<button id="pay">' + (mon ? "Set up monthly payment" : "Pay " + usd(p.amount_cents)) + '</button><div class="err" id="er"></div><div class="sec">🔒 Secure card payment by Stripe. No login needed.</div>' : (!state ? '<div class="note">Online payment isn\'t available for this link right now. Please contact us.</div>' : ''))
+    + '</div><div class="foot">Questions? ' + (b.email ? '<a href="mailto:' + H(b.email) + '">' + H(b.email) + '</a>' : '') + (b.phone ? ' · <a href="tel:' + H(b.phone.replace(/[^0-9+]/g, "")) + '">' + H(b.phone) + '</a>' : '') + '</div>';
+  const btn = document.getElementById("pay");
+  if (btn) btn.onclick = async () => { btn.disabled = true; btn.textContent = "Opening secure checkout…"; document.getElementById("er").textContent = "";
+    try { const r2 = await fetch(FN + "/pay/" + tok + "/checkout", { method: "POST", headers: { apikey: PK, "content-type": "application/json" }, body: "{}" }); const d2 = await r2.json();
+      if (!r2.ok || !d2.ok || !d2.url) throw new Error(d2.error || "Something went wrong. Please try again."); location.href = d2.url;
+    } catch (e) { document.getElementById("er").textContent = e.message; btn.disabled = false; btn.textContent = mon ? "Set up monthly payment" : "Pay " + usd(p.amount_cents); } };
+}
+load();
+})();
+</script></body></html>

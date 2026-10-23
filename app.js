@@ -71,15 +71,16 @@ async function loadMe() { const [m, u] = await Promise.all([api("/api/me"), api(
 
 // ---------- shell ----------
 const layoutOf = () => innerWidth >= 1200 ? "desk" : innerWidth >= 768 ? "pad" : "phone";
-const NAV = [["leads", "#/leads", "Leads", "leads"], ["proposals", "#/proposals", "Proposals", "props"], ["systems", "#/soon/systems", "Systems", "sys", "Soon"], ["money", "#/soon/money", "Money", "money", "Soon"]];
+const NAV = [["leads", "#/leads", "Leads", "leads"], ["proposals", "#/proposals", "Proposals", "props"], ["systems", "#/systems", "Systems", "sys"], ["money", "#/money", "Money", "money"]];
+const navItems = () => NAV.filter(n => n[0] !== "money" || owner());;
 function shell() {
   LAYOUT = layoutOf(); document.body.className = "L-" + LAYOUT + (railOpen ? " rail-open" : "");
   if (LAYOUT === "phone") {
     document.body.innerHTML = `<div id="shell" style="display:block"><header class="ptop" id="ptop"></header><main id="main"></main>
-      <nav class="tabs">${NAV.map(n => `<a href="${n[1]}" data-n="${n[0]}">${ic(n[3])}${n[2]}</a>`).join("")}</nav></div><div id="toast"></div>`;
+      <nav class="tabs">${navItems().map(n => `<a href="${n[1]}" data-n="${n[0]}">${ic(n[3])}${n[2]}</a>`).join("")}</nav></div><div id="toast"></div>`;
   } else {
     document.body.innerHTML = `<div id="shell"><aside class="side"><div class="logo"><img src="favicon.svg" alt=""><span>Days<i>Won</i> HQ</span></div>
-      ${NAV.map(n => `<a class="nv" href="${n[1]}" data-n="${n[0]}" title="${n[2]}">${ic(n[3])}<span class="lbl">${n[2]}</span>${n[4] ? `<em>${n[4]}</em>` : ""}</a>`).join("")}
+      ${navItems().map(n => `<a class="nv" href="${n[1]}" data-n="${n[0]}" title="${n[2]}">${ic(n[3])}<span class="lbl">${n[2]}</span>${n[4] ? `<em>${n[4]}</em>` : ""}</a>`).join("")}
       <div class="sp"></div>
       <a class="nv" href="#/team" data-n="team" title="Team">${ic("team")}<span class="lbl">Team</span></a>
       ${owner() ? `<a class="nv" href="#/settings" data-n="settings" title="Settings">${ic("gear")}<span class="lbl">Settings</span></a>` : ""}
@@ -148,8 +149,9 @@ async function leadsView(sel, sub) {
   if (m.dataset.v !== key || !LEADS) {
     m.dataset.v = key;
     m.innerHTML = LAYOUT === "desk" ? `<div id="pa"><div class="loading">Loading leads…</div></div><div id="dw"></div>` : `<div class="md"><div class="ml" id="pa"><div class="loading">Loading…</div></div><div class="mr" id="mr"></div></div>`;
-    try { await loadLeads(); } catch (e) { if (e.message !== "login") $("#pa").innerHTML = `<div class="loading">${esc(e.message)}</div>`; return; }
+    try { await loadLeads(); } catch (e) { if (e.message !== "login" && $("#pa")) $("#pa").innerHTML = `<div class="loading">${esc(e.message)}</div>`; return; }
   }
+  if (!$("#pa")) return;
   if (LAYOUT === "desk") drawBoard(sel); else drawList($("#pa"), sel);
   if (LAYOUT === "desk") {
     const dw = $("#dw");
@@ -183,7 +185,7 @@ async function leadDetail(el, id) {
     ${L.status === "New" ? `<div class="banner"><span>${stale(L) ? "Not contacted yet · came in " + ago(L.created_at) + " ago" : "Not contacted yet"}</span><button class="btn sm" id="mc">Mark contacted</button></div>` : ""}</div>
    <div class="box" style="margin-top:12px"><h3>Stage</h3><div class="seg" id="stg">${ST.map(s => `<button class="${s === L.status ? "on" : ""}" data-s="${esc(s)}">${esc(s)}</button>`).join("")}</div></div>
    <div class="box"><h3>Proposals</h3>${props.map(P => `<a class="prow" href="#/proposal/${P.id}"><span><b>${esc(P.title || "Untitled")}</b><br><small class="muted">${P.status === "accepted" ? "Accepted " + fmtD(P.accepted_at) : P.status === "sent" ? "Sent " + fmtD(P.sent_at) + (P.views ? " · opened " + P.views + "×" : " · not opened yet") : "Updated " + fmtD(P.updated_at)}${owner() && pval(P) ? " · " + esc(pval(P)) : ""}</small></span><span class="pill ${sc(P.status)}">${PL[P.status]}</span></a>`).join("") || `<div class="muted" style="font-size:14px">No proposals yet.</div>`}
-     <button class="btn" id="np" style="margin-top:10px">${ic("plus")}New proposal</button></div>
+     <button class="btn" id="np" style="margin-top:10px">${ic("plus")}New proposal</button></div>${owner() ? `<div class="box" id="lbill"></div>` : ""}
    <div class="box"><h3>Assigned to</h3><select id="as" class="in">${USERS.map(u => `<option value="${u.id}" ${u.id === L.assigned_to ? "selected" : ""}>${esc(u.name)}${u.id === ME.id ? " (me)" : ""}</option>`).join("")}<option value="" ${L.assigned_to ? "" : "selected"}>Nobody</option></select></div>
    <div class="box"><h3>Next follow-up</h3><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><input type="date" class="in" id="fu" value="${esc(L.follow_up || "")}" style="width:auto">
      <button class="btn sm" data-d="1">Tomorrow</button><button class="btn sm" data-d="3">+3 days</button><button class="btn sm" data-d="7">+1 week</button>${L.follow_up ? `<button class="btn sm ghost" data-d="x">Clear</button>` : ""}</div>
@@ -200,6 +202,7 @@ async function leadDetail(el, id) {
   el.querySelectorAll("[data-d]").forEach(b => b.onclick = () => patch({ follow_up: b.dataset.d === "x" ? null : addDays(+b.dataset.d) }, b.dataset.d === "x" ? "Follow-up cleared" : "Follow-up saved"));
   el.querySelector("#an").onclick = async () => { const t = el.querySelector("#nt").value.trim(); if (!t) return; try { await api("/api/lead/" + id + "/notes", { method: "POST", body: { text: t } }); toast("Note saved"); leadDetail(el, id); } catch (e) { toast(e.message); } };
   el.querySelector("#np").onclick = () => newProposal(id);
+  if (owner()) billingBox(el.querySelector("#lbill"), { leadId: id });
 }
 async function leadForm(el, id) {
   let L = { source: "Phone call", status: "New" };
@@ -295,7 +298,7 @@ async function editor(el, id, withPrev, onChange) {
     <div class="box"><h3>Scope</h3>${F("problem", "The problem", "area", "Their situation and why it matters.", 'Start a line with "- " for a bullet.')}${F("solution", "Our solution", "area", "What we build and run for them.")}
       ${F("steps", "How it works (one step per line)", "area", "Step name: what happens", 'Write each step as "Step name: what happens".')}${F("timeline", "Timeline (one per line)", "area", "Week 1: what happens")}${F("client_needs", "What we need from the client (one per line)", "area", "Access to …")}</div>
     ${own ? `<div class="box"><h3>Pricing</h3><div class="grid4"><div>${F("setup_price", "Setup $", "number", "0")}</div><div>${F("deposit_pct", "Deposit %", "number", "50")}</div><div>${F("monthly_fee", "Monthly $", "number", "0")}</div><div>${F("min_months", "Min. months", "number", "3")}</div></div>
-      <div class="hint" id="payh"></div>${F("price_notes", "Pricing notes", "area", "What the setup and monthly fee include; third-party costs.")}</div>` : ""}
+      <div class="hint" id="payh"></div>${F("price_notes", "Pricing notes", "area", "What the setup and monthly fee include; third-party costs.")}</div><div class="box" id="bill"></div>` : ""}
     <div class="box"><h3>Terms</h3>${F("valid_until", "Valid until", "date")}${F("terms", "Terms", "area", "")}<button class="btn sm" id="dterms" style="margin-top:8px">Reset to DaysWon default terms</button></div>
     <div class="box"><h3>History</h3>${d.events.map(e => `<div class="note log"><small>${esc(e.user_name || "")} · ${fmtDT(e.at)}</small>${esc(e.text)}</div>`).join("") || `<div class="muted">Nothing yet.</div>`}
       ${own ? `<button class="btn ghost danger sm" id="pdel" style="margin-top:10px">Delete proposal</button>` : ""}</div>
@@ -310,6 +313,7 @@ async function editor(el, id, withPrev, onChange) {
   const queue = (k, v) => { P[k] = v; pend[k] = v; $("#sv").textContent = "Editing…"; clearTimeout(tm); tm = setTimeout(save, 800); clearTimeout(ptm); ptm = setTimeout(drawPrev, 250); if (k === "title") $("#eh").textContent = v || "Untitled proposal"; };
   el.querySelectorAll("[data-k]").forEach(i => { i.addEventListener("input", () => queue(i.dataset.k, i.type === "number" ? (i.value === "" ? 0 : +i.value) : i.value)); i.addEventListener("blur", () => { clearTimeout(tm); save(); }); });
   el.querySelector("#e_lead").onchange = async e => { await save(); try { await api("/api/proposal/" + id, { method: "PATCH", body: { lead_id: e.target.value || null } }); toast("Lead linked"); changed(); editor(el, id, withPrev, onChange); } catch (x) { toast(x.message); } };
+  if (own) billingBox(el.querySelector("#bill"), { P });
   el.querySelector("#dterms").onclick = () => { if ((P.terms || "").trim() && !confirm("Replace the terms with the DaysWon default terms?")) return; const t = el.querySelector("#e_terms"); t.value = DEFAULT_TERMS; queue("terms", DEFAULT_TERMS); };
   el.querySelectorAll("#pst button").forEach(b => b.onclick = async () => {
     const s = b.dataset.s; if (s === P.status) return; await save();
@@ -359,7 +363,7 @@ async function teamView() {
   const m = main(); m.dataset.v = "";
   USERS = (await api("/api/users")).users; const own = owner();
   m.innerHTML = `<div class="bar"><h1>Team & account</h1></div><div class="page" style="max-width:720px">
-   ${own && LAYOUT === "phone" ? `<a class="btn" href="#/settings" style="width:100%;margin-bottom:12px">${ic("gear")}Settings (AI key, business details)</a>` : ""}
+   ${own && LAYOUT === "phone" ? `<a class="btn" href="#/settings" style="width:100%;margin-bottom:12px">${ic("gear")}Settings (payments, AI key, business details)</a>` : ""}
    <div class="box"><h3>People</h3>${USERS.map(u => `<div class="prow"><div style="display:flex;gap:10px;align-items:center"><div class="av">${esc(initials(u.name))}</div><div><b>${esc(u.name)}</b>${u.id === ME.id ? " (you)" : ""}<br><small class="muted">${esc(u.email || "")}${u.email ? " · " : ""}${u.role === "owner" ? "Owner" : "Member"}</small></div></div>
      ${own && !u.main && u.id !== ME.id ? `<div style="display:flex;gap:6px"><button class="btn sm" data-r="${u.id}">New password</button><button class="btn sm danger" data-x="${u.id}">Remove</button></div>` : ""}</div>`).join("")}</div>
    ${own ? `<div class="box"><h3>Add a person</h3><form id="tf"><div class="grid2"><div><label class="l">Name</label><input class="in" name="name" required></div><div><label class="l">Email</label><input class="in" name="email" type="email" autocapitalize="off" required></div></div>
@@ -382,7 +386,7 @@ async function settingsView() {
   const m = main(); m.dataset.v = "";
   if (!owner()) { m.innerHTML = `<div class="soon"><h2>Settings</h2><p>Only an owner can open Settings.</p></div>`; return; }
   m.innerHTML = `<div class="loading">Loading…</div>`;
-  const d = await api("/api/settings"); const ai = d.ai, biz = d.biz;
+  const [d, sd] = await Promise.all([api("/api/settings"), api("/api/settings/stripe")]); const ai = d.ai, biz = d.biz, st = sd.stripe; STRIPE = st;
   m.innerHTML = `<div class="bar"><h1>Settings</h1></div><div class="page" style="max-width:720px">
    <div class="box"><h3>AI for proposals</h3><p style="margin:0 0 8px;font-size:14px">Use DaysWon's own AI account (Anthropic or OpenAI). The key is stored encrypted on the server and is never sent back to any browser.</p>
     ${ai ? `<div class="banner ok"><span>Key saved: <b>${ai.provider === "anthropic" ? "Anthropic" : "OpenAI"}</b> ${esc(ai.hint)} · model ${esc(ai.model)}<br><small>Added by ${esc(ai.set_by || "")} · ${fmtDT(ai.set_at)}</small></span><button class="btn sm" id="rmk">Remove</button></div>` : `<div class="banner info"><span>No AI key yet. "Draft with AI" stays off until you add one.</span></div>`}
@@ -390,12 +394,24 @@ async function settingsView() {
      <label class="l">API key</label><input class="in" name="key" type="password" autocomplete="off" placeholder="${ai ? "Paste a new key to replace it" : "sk-ant-… or sk-…"}" required>
      <div class="err" id="ae"></div><button class="btn pri" type="submit" style="margin-top:12px">Save and test key</button></form>
     <p class="hint">Get a key at console.anthropic.com (API keys) or platform.openai.com (API keys). AI usage is billed by that provider to your account.</p></div>
+   <div class="box" id="paybox"><h3 style="display:flex;align-items:center;gap:8px">Payments (Stripe) ${st.connected && st.mode !== "live" ? '<span class="pill tm">TEST MODE</span>' : st.connected ? '<span class="pill s-accepted">LIVE</span>' : ""}</h3>
+    <p style="margin:0 0 8px;font-size:14px">Invoices, pay links and monthly billing run on your own Stripe account. The secret key is stored encrypted on the server and is never sent back to any browser.</p>
+    ${st.connected ? `<div class="banner ${st.mode === "live" ? "ok" : "tmb"}"><span><b>Connected, ${st.mode === "live" ? "live mode" : "test mode"}</b> · key ending ${esc(st.last4)}${st.account ? " · " + esc(st.account) : ""}${st.mock ? " · practice key (no Stripe)" : ""}<br><small>Payment updates: ${st.webhook_secret ? (st.webhook_auto ? "set up automatically in Stripe" : "signing secret saved") : "not set up yet (use Check with Stripe on the Money page)"} · added by ${esc(st.set_by || "")} ${st.set_at ? fmtDT(st.set_at) : ""}</small></span><button class="btn sm" id="rms">Remove</button></div>`
+      : `<div class="banner info"><span>Not connected. Invoices and pay links stay off until you add your Stripe key.</span></div>`}
+    <form id="sf"><label class="l">Secret key</label><input class="in" name="key" type="password" autocomplete="off" placeholder="${st.connected ? "Paste a new key to replace it (e.g. sk_live_… to go live)" : "sk_test_…"}">
+     <label class="l">Webhook signing secret (optional)</label><input class="in" name="webhook_secret" type="password" autocomplete="off" placeholder="whsec_… (leave empty: it's set up for you)">
+     <div class="err" id="se2"></div><div class="hint" id="sn2"></div><button class="btn pri" type="submit" style="margin-top:12px">Save and test key</button></form>
+    <p class="hint">Find it in Stripe: Developers → API keys → Secret key. Use the <b>test</b> key (sk_test_…) now; when your account is activated, paste the <b>live</b> key (sk_live_…) here to switch to real payments. Saving also adds the payment-updates webhook in Stripe for you. Never share your Stripe password with anyone.</p>
+    <details class="hint"><summary>Set up the webhook by hand</summary>In Stripe: Developers → Webhooks → Add endpoint.<br>URL: <b style="user-select:all;word-break:break-all">${esc(st.webhook_url || "")}</b><br>Events: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, payment_intent.payment_failed, invoice.paid, invoice.payment_failed, customer.subscription.created / updated / deleted. Then paste its signing secret above.</details></div>
    <div class="box"><h3>Business details on proposals</h3><form id="bf"><div class="grid2"><div><label class="l">Prepared by (your name)</label><input class="in" name="name" value="${esc(biz.name)}"></div><div><label class="l">Email</label><input class="in" name="email" type="email" value="${esc(biz.email)}"></div></div>
      <div class="grid2"><div><label class="l">Phone</label><input class="in" name="phone" value="${esc(biz.phone)}"></div><div><label class="l">Website</label><input class="in" name="website" value="${esc(biz.website)}" placeholder="e.g. dayswon.com"></div></div>
      <button class="btn" type="submit" style="margin-top:12px">Save details</button></form></div></div>`;
   $("#af").onsubmit = async e => { e.preventDefault(); const b = Object.fromEntries(new FormData(e.target).entries()); const btn = e.target.querySelector("button"); btn.disabled = true; btn.textContent = "Testing key…"; $("#ae").textContent = "";
     try { await api("/api/settings/ai", { method: "POST", body: b }); AIREADY = true; toast("AI key works and is saved"); settingsView(); } catch (x) { $("#ae").textContent = x.message; btn.disabled = false; btn.textContent = "Save and test key"; } };
   const rm = $("#rmk"); if (rm) rm.onclick = async () => { if (!confirm("Remove the AI key? Draft with AI turns off.")) return; await api("/api/settings/ai", { method: "DELETE" }); AIREADY = false; toast("Key removed"); settingsView(); };
+  $("#sf").onsubmit = async e => { e.preventDefault(); const b = Object.fromEntries(new FormData(e.target).entries()); const btn = e.target.querySelector("button"); btn.disabled = true; btn.textContent = "Testing key…"; $("#se2").textContent = "";
+    try { const r = await api("/api/settings/stripe", { method: "POST", body: b }); STRIPE = r.stripe; toast("Stripe connected · " + (r.stripe.mode === "live" ? "LIVE" : "test mode")); await settingsView(); if (r.note) { const n = $("#sn2"); if (n) n.textContent = r.note; } } catch (x) { $("#se2").textContent = x.message; btn.disabled = false; btn.textContent = "Save and test key"; } };
+  const rms = $("#rms"); if (rms) rms.onclick = async () => { if (!confirm("Remove the Stripe key? New invoices and pay links stop working until you add a key again.")) return; await api("/api/settings/stripe", { method: "DELETE" }); STRIPE = null; toast("Stripe key removed"); settingsView(); };
   $("#bf").onsubmit = async e => { e.preventDefault(); try { await api("/api/settings/biz", { method: "POST", body: Object.fromEntries(new FormData(e.target).entries()) }); toast("Saved"); } catch (x) { toast(x.message); } };
 }
 function soon(k) {
@@ -404,11 +420,166 @@ function soon(k) {
   main().innerHTML = `<div class="soon">${ic(S[0])}<h2>${S[1]}</h2><p>${S[2]}</p><p><span class="pill">Coming soon</span></p></div>`;
 }
 
+
+// ---------- money (owner only) ----------
+let STRIPE = null, moneyFilter = "All", moneyClient = "";
+const cents = c => "$" + ((c || 0) / 100).toLocaleString("en-US", { minimumFractionDigits: (c || 0) % 100 ? 2 : 0, maximumFractionDigits: 2 });
+const IST = { unpaid: "Unpaid", overdue: "Overdue", paid: "Paid", failed: "Failed", void: "Cancelled" };
+const SST = { pending: "Waiting for client", active: "Active", past_due: "Payment failed", canceled: "Stopped", paused: "Paused" };
+const payLink = t => BASEURL + "pay.html#" + t;
+const testBadge = () => STRIPE && STRIPE.connected && STRIPE.mode !== "live" ? `<span class="pill tm">TEST MODE</span>` : "";
+const modeTag = x => x.mode !== "live" ? ` <span class="pill tm xs">TEST</span>` : "";
+const cname = x => x.lead_company || x.lead_name || "No client";
+const fmtYmd = s => s ? fmtF(s) : "";
+async function stripeStatus() { if (STRIPE === null) { try { STRIPE = (await api("/api/settings/stripe")).stripe; } catch { STRIPE = { connected: false }; } } return STRIPE; }
+function invItem(I, showClient) {
+  return `<div class="mrow"><div class="mmain"><b>${esc(I.description || "Invoice")}</b>${modeTag(I)}<div class="muted">${showClient ? esc(cname(I)) + " · " : ""}${I.status === "paid" ? "Paid " + fmtD(I.paid_at) : I.status === "void" ? "Cancelled " + fmtD(I.voided_at) : "Due " + fmtYmd(I.due_date)}${I.status === "failed" && I.last_error ? " · " + esc(I.last_error) : ""}</div></div>
+    <div class="mamt">${cents(I.amount_cents)}<span class="pill i-${I.status}">${IST[I.status] || esc(I.status)}</span></div>
+    <div class="macts">${["unpaid", "overdue", "failed"].includes(I.status) ? `<button class="btn sm pri" data-cp="${I.id}">${ic("link")}Pay link</button><button class="btn sm ghost" data-void="${I.id}">Cancel</button>` : ""}${I.status === "void" ? `<button class="btn sm ghost danger" data-del="${I.id}">Delete</button>` : ""}</div></div>`;
+}
+function subItem(S, showClient) {
+  return `<div class="mrow"><div class="mmain"><b>${esc(S.description || "Monthly")}</b>${modeTag(S)}<div class="muted">${showClient ? esc(cname(S)) + " · " : ""}${S.status === "active" ? (S.next_charge ? "Next charge " + fmtYmd(S.next_charge) : "Active") : S.status === "pending" ? "First charge " + fmtYmd(S.start_date) + " · client hasn't set up payment yet" : S.status === "canceled" ? "Stopped " + fmtD(S.canceled_at) : esc(S.last_error || "")}</div></div>
+    <div class="mamt">${cents(S.amount_cents)}/mo<span class="pill u-${S.status}">${SST[S.status] || esc(S.status)}</span></div>
+    <div class="macts">${S.status === "pending" ? `<button class="btn sm pri" data-cps="${S.id}">${ic("link")}Pay link</button>` : ""}${["pending", "active", "past_due", "paused"].includes(S.status) ? `<button class="btn sm ghost" data-stop="${S.id}">Stop</button>` : ""}${S.status === "canceled" ? `<button class="btn sm ghost danger" data-sdel="${S.id}">Delete</button>` : ""}</div></div>`;
+}
+function linkSheet(x, isSub) {
+  const link = payLink(x.token), what = isSub ? cents(x.amount_cents) + "/month" : cents(x.amount_cents);
+  const mt = "mailto:?subject=" + encodeURIComponent((x.description || "Payment") + " | DaysWon") + "&body=" + encodeURIComponent(`Hi,\n\n${isSub ? "Here's the link to set up the monthly payment (" + what + ")" : "Here's the payment link for " + (x.description || "your invoice") + " (" + what + (x.due_date ? ", due " + fmtYmd(x.due_date) : "") + ")"}:\n${link}\n\nYou can pay securely by card on that page. No login needed.\n\nThank you,\n${ME.name}\nDaysWon`);
+  const s = sheet(`<h3>Pay link ${x.mode !== "live" ? '<span class="pill tm">TEST MODE</span>' : ""}</h3><p class="muted" style="margin:0 0 8px">${esc(x.description || "")} · ${what}. The client pays by card on this page, no login. Nothing is sent by the app: you send it yourself.</p>
+    <input class="in" readonly value="${esc(link)}" id="lk" onclick="this.select()"><button class="btn pri" id="cpl">Copy link</button>${navigator.share ? `<button class="btn" id="shl">Share…</button>` : ""}<a class="btn" href="${esc(mt)}">Email draft</a><a class="btn" href="${esc(link)}" target="_blank" rel="noopener">Open pay page</a>`);
+  s.querySelector("#cpl").onclick = async () => { try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { s.querySelector("#lk").select(); document.execCommand("copy"); toast("Link copied"); } };
+  const shl = s.querySelector("#shl"); if (shl) shl.onclick = async () => { try { await navigator.share({ title: (x.description || "Payment") + " · DaysWon", url: link }); } catch { } };
+}
+function bindMoney(el, data, redraw) {
+  const fi = id => data.invoices.find(i => i.id === id), fs = id => data.subscriptions.find(i => i.id === id);
+  el.querySelectorAll("[data-cp]").forEach(b => b.onclick = () => linkSheet(fi(b.dataset.cp), false));
+  el.querySelectorAll("[data-cps]").forEach(b => b.onclick = () => linkSheet(fs(b.dataset.cps), true));
+  const act = async (path, method, msg) => { try { await api(path, { method }); toast(msg); redraw(); } catch (e) { toast(e.message); } };
+  el.querySelectorAll("[data-void]").forEach(b => b.onclick = () => confirm("Cancel this invoice? Its pay link stops working.") && act("/api/invoices/" + b.dataset.void + "/void", "POST", "Invoice cancelled"));
+  el.querySelectorAll("[data-del]").forEach(b => b.onclick = () => confirm("Delete this cancelled invoice from the list?") && act("/api/invoices/" + b.dataset.del, "DELETE", "Deleted"));
+  el.querySelectorAll("[data-stop]").forEach(b => b.onclick = () => confirm("Stop monthly billing? If the client is already paying monthly, Stripe cancels it now and no more charges are made.") && act("/api/subscriptions/" + b.dataset.stop + "/cancel", "POST", "Monthly billing stopped"));
+  el.querySelectorAll("[data-sdel]").forEach(b => b.onclick = () => confirm("Delete this stopped billing from the list?") && act("/api/subscriptions/" + b.dataset.sdel, "DELETE", "Deleted"));
+}
+function noKeyBanner() { return `<div class="banner info"><span>No Stripe key yet. Add your Stripe key in <a href="#/settings">Settings → Payments</a> to create invoices and pay links.</span></div>`; }
+// Billing box on a proposal (create + list) or a lead (list)
+async function billingBox(box, o) {
+  if (!box) return;
+  box.innerHTML = `<h3>Billing</h3><div class="muted">Loading…</div>`;
+  let d; try { [d] = await Promise.all([api("/api/money?" + (o.P ? "proposal=" + o.P.id : "lead=" + o.leadId)), stripeStatus()]); STRIPE = d.stripe; } catch (e) { box.innerHTML = `<h3>Billing</h3><div class="muted">${esc(e.message)}</div>`; return; }
+  const P = o.P, ready = STRIPE.connected, acc = P && P.status === "accepted";
+  const setup = P ? +P.setup_price || 0 : 0, dp = P ? +P.deposit_pct || 0 : 0, dep = Math.round(setup * dp) / 100, rest = setup - dep, mon = P ? +P.monthly_fee || 0 : 0;
+  const has = k => d.invoices.some(i => i.kind === k && i.status !== "void"), hasSub = d.subscriptions.some(s => s.status !== "canceled");
+  let make = "";
+  if (P) {
+    if (!acc) make = `<div class="hint">Invoices and monthly billing open once this proposal is Accepted.</div>`;
+    else if (!ready) make = noKeyBanner() + `<div class="mbtns"><button class="btn" disabled>Create deposit invoice</button><button class="btn" disabled>Start monthly billing</button></div>`;
+    else make = `<div class="mbtns">${setup ? `<button class="btn ${has("deposit") ? "" : "pri"}" data-mk="deposit">${ic("plus")}Deposit invoice${dep ? " · " + money(dep) : ""}</button><button class="btn" data-mk="launch">${ic("plus")}Launch invoice${rest ? " · " + money(rest) : ""}</button>` : ""}
+      ${mon ? `<button class="btn" data-mk="monthly" ${hasSub ? "disabled" : ""}>${ic("plus")}Start monthly billing · ${money(mon)}/mo</button>` : ""}<button class="btn ghost" data-mk="custom">${ic("plus")}Other invoice</button></div>`;
+  }
+  const list = d.invoices.map(I => invItem(I, false)).join("") + d.subscriptions.map(S => subItem(S, false)).join("");
+  box.innerHTML = `<h3 style="display:flex;align-items:center;gap:8px">Billing ${testBadge()}</h3>${make}<div class="mlist">${list || `<div class="muted" style="font-size:14px">${P ? "No invoices yet." : "No invoices yet. Create them from the client's accepted proposal."}</div>`}</div>`;
+  const redraw = () => billingBox(box, o);
+  bindMoney(box, d, redraw);
+  box.querySelectorAll("[data-mk]").forEach(b => b.onclick = () => {
+    const k = b.dataset.mk, monthly = k === "monthly";
+    const amt = k === "deposit" ? dep : k === "launch" ? rest : monthly ? mon : "";
+    const desc = monthly ? "Monthly service · " + (P.title || "Project") : (k === "deposit" ? "Setup deposit (" + dp + "%)" : k === "launch" ? "Setup balance at launch" : "") + (k === "custom" ? "" : " · " + (P.title || "Project"));
+    const firstOfNext = (() => { const t = new Date(); return ymd(new Date(t.getFullYear(), t.getMonth() + 1, 1)); })();
+    const s = sheet(`<h3>${monthly ? "Start monthly billing" : k === "deposit" ? "Deposit invoice" : k === "launch" ? "Launch invoice" : "New invoice"} ${testBadge()}</h3>
+      <label class="l">Description</label><input class="in" id="md" value="${esc(desc)}" placeholder="What it's for">
+      <label class="l">${monthly ? "Amount per month ($)" : "Amount ($)"}</label><input class="in" id="ma" type="number" inputmode="decimal" min="1" step="0.01" value="${esc(amt)}">
+      <label class="l">${monthly ? "First charge date" : "Due date"}</label><input class="in" id="mdt" type="date" min="${today()}" value="${monthly ? firstOfNext : addDays(7)}">
+      <div class="hint">${monthly ? "The client opens the pay link and saves a card. Stripe then charges " + "monthly from this date. If the date is less than 2 days away, the first charge happens when they sign up." : "Marked overdue in the app after this date. The app doesn't send reminders."}</div>
+      <div class="err" id="me"></div><button class="btn pri" id="mok">${monthly ? "Create monthly pay link" : "Create invoice"}</button>`);
+    s.querySelector("#mok").onclick = async () => { const btn = s.querySelector("#mok"); btn.disabled = true;
+      try { const body = { proposal_id: P.id, description: s.querySelector("#md").value, amount: s.querySelector("#ma").value };
+        if (monthly) body.start_date = s.querySelector("#mdt").value; else { body.kind = k; body.due_date = s.querySelector("#mdt").value; }
+        await api(monthly ? "/api/subscriptions" : "/api/invoices", { method: "POST", body }); s.remove(); toast(monthly ? "Monthly pay link ready" : "Invoice created"); await billingBox(box, o);
+        const d2 = await api("/api/money?proposal=" + P.id); const x = monthly ? d2.subscriptions[0] : d2.invoices[0]; if (x) linkSheet(x, monthly);
+      } catch (e) { s.querySelector("#me").textContent = e.message; btn.disabled = false; } };
+  });
+}
+async function moneyView() {
+  setNav("money"); if (LAYOUT === "phone") ptop(); const m = main(); m.dataset.v = "";
+  if (!owner()) { m.innerHTML = `<div class="soon"><h2>Money</h2><p>Only an owner can see money.</p></div>`; return; }
+  m.innerHTML = `<div class="bar"><h1>Money</h1></div><div class="loading">Loading…</div>`;
+  let d; try { d = await api("/api/money"); STRIPE = d.stripe; } catch (e) { if (e.message !== "login") m.innerHTML = `<div class="loading">${esc(e.message)}</div>`; return; }
+  const cur = STRIPE.connected ? STRIPE.mode : null, inMode = x => !cur || x.mode === cur;
+  const INV = d.invoices.filter(inMode), SUB = d.subscriptions.filter(inMode);
+  const sum = (a, f) => a.filter(f).reduce((s, x) => s + x.amount_cents, 0);
+  const paid = sum(INV, i => i.status === "paid"), unpaid = sum(INV, i => ["unpaid", "failed"].includes(i.status)), overdue = sum(INV, i => i.status === "overdue"), mrr = sum(SUB, s => s.status === "active");
+  const nexts = SUB.filter(s => s.status === "active" && s.next_charge).map(s => s.next_charge).sort();
+  const clients = {}; for (const x of [...d.invoices, ...d.subscriptions]) { const k = x.lead_id || "none"; clients[k] = clients[k] || { id: k, name: cname(x), paid: 0, unpaid: 0, overdue: 0, mrr: 0, next: null }; }
+  for (const i of INV) { const c = clients[i.lead_id || "none"]; if (i.status === "paid") c.paid += i.amount_cents; else if (i.status === "overdue") c.overdue += i.amount_cents; else if (i.status !== "void") c.unpaid += i.amount_cents; }
+  for (const s of SUB) { const c = clients[s.lead_id || "none"]; if (s.status === "active") { c.mrr += s.amount_cents; if (s.next_charge && (!c.next || s.next_charge < c.next)) c.next = s.next_charge; } }
+  const CL = Object.values(clients).sort((a, b) => a.name.localeCompare(b.name));
+  const draw = () => {
+    const fInv = d.invoices.filter(i => (moneyFilter === "All" || i.status === moneyFilter) && (!moneyClient || (i.lead_id || "none") === moneyClient));
+    const fSub = d.subscriptions.filter(s => (moneyFilter === "All" || (moneyFilter === "monthly")) && (!moneyClient || (s.lead_id || "none") === moneyClient));
+    const cnt = st => d.invoices.filter(i => i.status === st).length;
+    const chips = [["All", "All", d.invoices.length + d.subscriptions.length], ["unpaid", "Unpaid", cnt("unpaid")], ["overdue", "Overdue", cnt("overdue")], ["paid", "Paid", cnt("paid")], ["failed", "Failed", cnt("failed")], ["void", "Cancelled", cnt("void")], ["monthly", "Monthly", d.subscriptions.length]];
+    const tile = (lab, v, cls, sub) => `<div class="tile ${cls || ""}"><small>${lab}</small><b>${v}</b>${sub ? `<em>${sub}</em>` : ""}</div>`;
+    m.innerHTML = `<div class="bar"><h1>Money</h1>${testBadge()}<div class="grow"></div>${STRIPE.connected ? `<button class="btn sm" id="msync">${ic("refresh")}Check with Stripe</button>` : ""}</div><div class="page mpage">
+      ${STRIPE.connected ? (STRIPE.mode !== "live" ? `<div class="banner tmb"><span><b>Test mode.</b> Pay links use Stripe's practice payments (card 4242 4242 4242 4242). No real money moves. Paste a live key in Settings to go live.</span></div>` : "") : noKeyBanner()}
+      <div class="tiles">${tile("Paid", cents(paid), "g")}${tile("Unpaid", cents(unpaid))}${tile("Overdue", cents(overdue), overdue ? "r" : "")}${tile("Monthly (MRR)", cents(mrr), "", SUB.filter(s => s.status === "active").length + " active")}${tile("Next charge", nexts[0] ? fmtYmd(nexts[0]) : "None", "", nexts.length ? nexts.length + " scheduled" : "")}</div>
+      <div class="box"><h3>By client</h3>${CL.length ? `<table class="pt mt2"><thead><tr><th>Client</th><th>Paid</th><th>Unpaid</th><th>Overdue</th><th>Monthly</th><th>Next charge</th></tr></thead><tbody>${CL.map(c => `<tr data-c="${c.id}"><td><b>${esc(c.name)}</b></td><td data-l="Paid">${cents(c.paid)}</td><td data-l="Unpaid">${cents(c.unpaid)}</td><td data-l="Overdue" class="${c.overdue ? "red" : ""}">${cents(c.overdue)}</td><td data-l="Monthly">${c.mrr ? cents(c.mrr) + "/mo" : "—"}</td><td data-l="Next">${c.next ? fmtYmd(c.next) : "—"}</td></tr>`).join("")}</tbody></table>` : `<div class="muted" style="font-size:14px">Nothing billed yet. Open an accepted proposal and tap <b>Deposit invoice</b> or <b>Start monthly billing</b>.</div>`}</div>
+      <div class="box"><h3>Invoices & monthly billing</h3>
+        <div class="mfil"><div class="chips">${chips.map(c => `<button class="chip ${moneyFilter === c[0] ? "on" : ""}" data-mf="${c[0]}">${c[1]}<i>${c[2]}</i></button>`).join("")}</div>
+        <select class="in" id="mcl" style="width:auto;max-width:100%"><option value="">All clients</option>${CL.map(c => `<option value="${c.id}" ${moneyClient === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></div>
+        <div class="mlist">${moneyFilter !== "monthly" ? fInv.map(i => invItem(i, true)).join("") : ""}${fSub.map(s => subItem(s, true)).join("") || ""}${(moneyFilter !== "monthly" ? fInv.length : 0) + fSub.length ? "" : `<div class="empty">Nothing here.</div>`}</div></div></div>`;
+    m.querySelectorAll("[data-mf]").forEach(b => b.onclick = () => { moneyFilter = b.dataset.mf; draw(); });
+    m.querySelector("#mcl").onchange = e => { moneyClient = e.target.value; draw(); };
+    m.querySelectorAll("tr[data-c]").forEach(tr => tr.onclick = () => { moneyClient = tr.dataset.c; draw(); });
+    bindMoney(m, d, moneyView);
+    const ms = $("#msync"); if (ms) ms.onclick = async () => { ms.disabled = true; ms.textContent = "Checking…"; try { const r = (await api("/api/money/sync", { method: "POST" })).result; toast(r.practice ? "Practice key: nothing to check" : r.changed ? r.changed + " updated from Stripe" : "Up to date with Stripe"); moneyView(); } catch (e) { toast(e.message); ms.disabled = false; } };
+  };
+  draw();
+}
+// ---------- client systems (owner + member) ----------
+const SYST = { up: "Up", down: "Down", unknown: "Unknown" };
+async function systemsView() {
+  setNav("systems"); if (LAYOUT === "phone") ptop(); const m = main(); m.dataset.v = "";
+  m.innerHTML = `<div class="bar"><h1>Client systems</h1></div><div class="loading">Loading…</div>`;
+  let d; try { [d] = await Promise.all([api("/api/systems"), LEADS ? null : loadLeads()]); } catch (e) { if (e.message !== "login") m.innerHTML = `<div class="loading">${esc(e.message)}</div>`; return; }
+  const SY = d.systems, own = owner();
+  const dot = s => `<span class="sdot d-${s.status}"></span>`;
+  const last = s => !s.last_checked ? "Never" : Date.now() - Date.parse(s.last_checked) < 60e3 ? "Just now" : ago(s.last_checked) + " ago";
+  const resp = s => s.response_ms != null ? s.response_ms + " ms" : "—";
+  const host = u => { try { return new URL(u).host + (new URL(u).pathname.length > 1 ? new URL(u).pathname : ""); } catch { return u || ""; } };
+  const counts = { up: SY.filter(s => s.status === "up").length, down: SY.filter(s => s.status === "down").length };
+  m.innerHTML = `<div class="bar"><h1>Client systems</h1><div class="grow"></div>${SY.some(s => s.url) ? `<button class="btn sm" id="ckall">${ic("refresh")}Check all</button>` : ""}${own ? `<button class="btn pri sm" id="addsys">${ic("plus")}Add system</button>` : ""}</div><div class="page">
+    <p class="muted" style="margin:0 0 10px;font-size:14px">${SY.length ? `${counts.up} up · ${counts.down} down · ${SY.length - counts.up - counts.down} unknown. ` : ""}Check now pings the address from the server and records the answer and response time. Nothing is sent to anyone.</p>
+    ${SY.length ? (LAYOUT === "phone" ? SY.map(s => `<div class="pc sys"><div class="row"><span class="t">${dot(s)}${esc(s.name)}</span><span class="pill y-${s.status}">${SYST[s.status] || s.status}</span></div>
+        <div class="mt">${esc(cname(s))}${s.url ? " · " + esc(host(s.url)) : ""}</div><div class="mt">Checked ${last(s)} · ${resp(s)}${s.last_error ? " · " + esc(s.last_error) : ""}</div>${s.notes ? `<div class="mt">${esc(s.notes)}</div>` : ""}
+        <div class="macts" style="margin-top:8px">${s.url ? `<button class="btn sm" data-ck="${s.id}">Check now</button>` : ""}${own ? `<button class="btn sm ghost" data-ed="${s.id}">Edit</button>` : ""}</div></div>`).join("")
+      : `<div class="box" style="padding:0;overflow:auto"><table class="pt sy"><thead><tr><th>Status</th><th>System</th><th>Client</th><th>URL / endpoint</th><th>Last checked</th><th>Response</th><th>Notes</th><th></th></tr></thead><tbody>
+        ${SY.map(s => `<tr><td><span class="pill y-${s.status}">${SYST[s.status] || s.status}</span></td><td><b>${esc(s.name)}</b></td><td>${esc(cname(s))}</td><td class="url">${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(host(s.url))}</a>` : "—"}</td>
+          <td>${last(s)}${s.last_error ? `<div class="red" style="font-size:12px">${esc(s.last_error)}</div>` : ""}</td><td>${resp(s)}</td><td class="nt">${esc(s.notes || "")}</td><td style="white-space:nowrap">${s.url ? `<button class="btn sm" data-ck="${s.id}">Check now</button>` : ""}${own ? ` <button class="btn sm ghost" data-ed="${s.id}">Edit</button>` : ""}</td></tr>`).join("")}</tbody></table></div>`)
+    : `<div class="empty">${ic("sys")}<br>No client systems yet.${own ? " Tap Add system to list what you've built for a client." : ""}</div>`}</div>`;
+  m.querySelectorAll("[data-ck]").forEach(b => b.onclick = async () => { b.disabled = true; b.textContent = "Checking…"; try { const r = (await api("/api/systems/" + b.dataset.ck + "/check", { method: "POST" })).result; toast(r.status === "up" ? "Up · " + r.response_ms + " ms" : "Down" + (r.error ? " · " + r.error : "")); systemsView(); } catch (e) { toast(e.message); b.disabled = false; b.textContent = "Check now"; } });
+  const ca = $("#ckall"); if (ca) ca.onclick = async () => { ca.disabled = true; ca.textContent = "Checking…"; try { await api("/api/systems/check-all", { method: "POST" }); toast("All checked"); } catch (e) { toast(e.message); } systemsView(); };
+  const form = s => {
+    const won = (LEADS || []).filter(L => L.status === "Won"), other = (LEADS || []).filter(L => L.status !== "Won");
+    const opt = L => `<option value="${L.id}" ${s && s.lead_id === L.id ? "selected" : ""}>${esc(L.company ? L.company + " · " + L.name : L.name)}</option>`;
+    const sh = sheet(`<h3>${s ? "Edit system" : "Add system"}</h3><label class="l">System name</label><input class="in" id="sn" value="${esc(s ? s.name : "")}" placeholder="e.g. Refi Radar">
+      <label class="l">Client</label><select class="in" id="sl"><option value="">No client</option>${won.length ? `<optgroup label="Won clients">${won.map(opt).join("")}</optgroup>` : ""}${other.length ? `<optgroup label="Other leads">${other.map(opt).join("")}</optgroup>` : ""}</select>
+      <label class="l">URL / endpoint to check</label><input class="in" id="su" type="url" inputmode="url" autocapitalize="off" value="${esc(s ? s.url || "" : "")}" placeholder="https://…">
+      <label class="l">Notes</label><textarea class="in" id="sno" rows="3" placeholder="Where it runs, logins live in…, what to watch">${esc(s ? s.notes || "" : "")}</textarea>
+      <div class="err" id="se"></div><button class="btn pri" id="sok">${s ? "Save" : "Add system"}</button>${s ? `<button class="btn ghost danger" id="sdel">Delete system</button>` : ""}`);
+    sh.querySelector("#sok").onclick = async () => { const body = { name: sh.querySelector("#sn").value, lead_id: sh.querySelector("#sl").value || null, url: sh.querySelector("#su").value.trim(), notes: sh.querySelector("#sno").value };
+      try { await api(s ? "/api/systems/" + s.id : "/api/systems", { method: s ? "PATCH" : "POST", body }); sh.remove(); toast(s ? "Saved" : "System added"); systemsView(); } catch (e) { sh.querySelector("#se").textContent = e.message; } };
+    const del = sh.querySelector("#sdel"); if (del) del.onclick = async () => { if (!confirm("Delete " + s.name + "?")) return; await api("/api/systems/" + s.id, { method: "DELETE" }); sh.remove(); toast("Deleted"); systemsView(); };
+  };
+  const ad = $("#addsys"); if (ad) ad.onclick = () => form(null);
+  m.querySelectorAll("[data-ed]").forEach(b => b.onclick = () => form(SY.find(s => s.id === b.dataset.ed)));
+}
+
 // ---------- router ----------
 async function route() {
   if (!ME) { if (!SESS) return showLogin(); try { await loadMe(); } catch (e) { return; } LAYOUT = null; }
   if (!$("#main") || LAYOUT !== layoutOf()) shell();
   const h = location.hash || "#/leads"; let m;
+  document.querySelectorAll(".sheet-bg").forEach(x => x.remove());
   if (LAYOUT !== "desk" || !/^#\/(lead|edit|add)/.test(h)) window.scrollTo(0, 0);
   try {
     if ((m = h.match(/^#\/lead\/([a-f0-9]{24})$/))) return await leadsView(m[1], "lead");
@@ -416,7 +587,8 @@ async function route() {
     if (h === "#/add") return await leadsView(null, "add");
     if ((m = h.match(/^#\/proposal\/([a-f0-9]{24})$/))) return await proposalsView(m[1]);
     if (h === "#/proposals") return await proposalsView(null);
-    if ((m = h.match(/^#\/soon\/(\w+)$/))) return soon(m[1]);
+    if (h === "#/systems" || h === "#/soon/systems") return await systemsView();
+    if (h === "#/money" || h === "#/soon/money") return await moneyView();
     if (h === "#/team") return await teamView();
     if (h === "#/settings") return await settingsView();
     return await leadsView(null, null);

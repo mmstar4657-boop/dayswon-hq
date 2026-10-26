@@ -118,3 +118,7 @@ body.L-phone .mpage .pt tr{display:grid;grid-template-columns:1fr 1fr;border-top
 body.L-phone .mpage .pt td:first-child{grid-column:1/-1;font-size:15px}body.L-phone .mpage .pt td[data-l]::before{content:attr(data-l) " ";color:var(--mut);font-size:12px}
 body.L-phone .mpage .box{padding:14px}
 body.L-phone .tile:last-child{grid-column:1/-1}
+.pwf{position:relative;display:block}.pwf .in{padding-right:48px}.pwf .in::-ms-reveal{display:none}
+.pwf .eye{position:absolute;top:50%;right:1px;transform:translateY(-50%);width:44px;height:40px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:8px;background:transparent;color:var(--mut);touch-action:manipulation}
+.pwf .eye:hover,.pwf .eye[aria-pressed="true"]{color:var(--navy)}.pwf .eye:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.pwf .eye svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}

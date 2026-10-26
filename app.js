@@ -57,6 +57,23 @@ function toast(t) { const e = $("#toast"); if (!e) return; e.textContent = t; e.
 function loadScript(src) { return new Promise((ok, no) => { if (document.querySelector(`script[src="${src}"]`)) return ok(); const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error("Couldn't load " + src)); document.head.appendChild(s); }); }
 function sheet(inner) { const bg = document.createElement("div"); bg.className = "sheet-bg"; bg.innerHTML = `<div class="sheet">${inner}<button class="btn ghost" data-close>Close</button></div>`; bg.onclick = e => { if (e.target === bg || e.target.closest("[data-close]")) bg.remove(); }; document.body.appendChild(bg); return bg; }
 
+// ---------- show/hide password ----------
+const EYE_ON = '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>';
+const EYE_OFF = '<path d="M9.9 5.2A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.8 9.8 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/>';
+function pwEye(inp) {
+  if (inp.dataset.eye) return; inp.dataset.eye = "1";
+  const w = document.createElement("span"); w.className = "pwf"; inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
+  const b = document.createElement("button"); b.type = "button"; b.className = "eye"; b.tabIndex = 0;
+  const set = shown => { inp.type = shown ? "text" : "password"; b.setAttribute("aria-label", shown ? "Hide password" : "Show password"); b.setAttribute("aria-pressed", shown ? "true" : "false"); b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${shown ? EYE_OFF : EYE_ON}</svg>`; };
+  set(false); w.appendChild(b);
+  b.addEventListener("mousedown", e => e.preventDefault());
+  b.addEventListener("click", () => { const at = inp.selectionStart; set(inp.type === "password"); if (document.activeElement === inp && at != null) try { inp.setSelectionRange(at, at); } catch { } });
+}
+const pwEyes = root => (root || document).querySelectorAll('input[type="password"]:not([data-eye])').forEach(pwEye);
+// hide every password again before a form submits, so password managers save it as a password
+document.addEventListener("submit", e => e.target.querySelectorAll("input[data-eye]").forEach(i => { if (i.type !== "password") { i.type = "password"; const b = i.parentNode.querySelector(".eye"); if (b) { b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false"); b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${EYE_ON}</svg>`; } } }), true);
+new MutationObserver(() => pwEyes()).observe(document.documentElement, { childList: true, subtree: true });
+
 // ---------- auth ----------
 function showLogin() {
   ME = null; LEADS = null; PROPS = null; LAYOUT = null; document.body.className = "";
@@ -370,12 +387,17 @@ async function teamView() {
      <label class="l">Role</label><select class="in" name="role"><option value="owner">Owner (everything)</option><option value="member" selected>Member (leads and proposals, no money)</option></select>
      <div class="err" id="te"></div><button class="btn pri" type="submit" style="margin-top:12px">Add person</button></form>
      <p class="hint">Owner: everything, including money, the team and Settings. Member: works leads and proposals; no prices, can't delete or manage the team. You'll see their password once, here, to send them yourself. Nothing is emailed.</p><div id="newpw"></div></div>` : ""}
-   <div class="box"><h3>My password</h3><form id="pf"><label class="l">Current password</label><input class="in" name="current" type="password" autocomplete="current-password" required>
-     <label class="l">New password (10+ characters)</label><input class="in" name="password" type="password" autocomplete="new-password" required minlength="10"><div class="err" id="pe"></div><button class="btn" type="submit" style="margin-top:10px">Change password</button></form></div>
+   <div class="box"><h3>My password</h3><form id="pf"><label class="l" for="pfc">Current password</label><input class="in" id="pfc" name="current" type="password" autocomplete="current-password" required>
+     <label class="l" for="pfn">New password (10+ characters)</label><input class="in" id="pfn" name="password" type="password" autocomplete="new-password" required minlength="10">
+     <label class="l" for="pfr">Confirm new password</label><input class="in" id="pfr" type="password" autocomplete="new-password" required><div class="err" id="pe"></div><button class="btn" type="submit" style="margin-top:10px">Change password</button></form></div>
    <div style="text-align:center;margin-top:16px"><button class="btn ghost danger" id="lo">Sign out</button></div></div>`;
   const showPw = (who, pw) => { $("#newpw").innerHTML = `<div class="banner ok" style="display:block"><b>${esc(who)}</b> can sign in at ${esc(BASEURL)}<br>Password: <b style="user-select:all;font-family:ui-monospace,monospace">${esc(pw)}</b><br><small>Copy it now. It won't be shown again.</small></div>`; };
   $("#lo").onclick = async () => { try { await api("/api/logout", { method: "POST" }); } catch { } showLogin(); };
-  $("#pf").onsubmit = async e => { e.preventDefault(); try { await api("/api/me/password", { method: "POST", body: Object.fromEntries(new FormData(e.target).entries()) }); e.target.reset(); toast("Password changed"); } catch (x) { $("#pe").textContent = x.message; } };
+  $("#pf").onsubmit = async e => { e.preventDefault(); const f = e.target, cur = $("#pfc").value, pw = $("#pfn").value; $("#pe").textContent = "";
+    if (pw.length < 10) { $("#pe").textContent = "New password needs at least 10 characters"; return; }
+    if (pw !== $("#pfr").value) { $("#pe").textContent = "Passwords don't match"; $("#pfr").focus(); return; }
+    try { await api("/api/me/password", { method: "POST", body: { current: cur, password: pw } }); f.reset(); toast("Password changed"); } catch (x) { $("#pe").textContent = x.message; } };
+  $("#pfr").oninput = $("#pfn").oninput = () => { if ($("#pe").textContent === "Passwords don't match") $("#pe").textContent = ""; };
   if (!own) return;
   $("#tf").onsubmit = async e => { e.preventDefault(); const b = Object.fromEntries(new FormData(e.target).entries()); try { const d = await api("/api/team", { method: "POST", body: b }); await teamView(); showPw(b.name, d.password); } catch (x) { $("#te").textContent = x.message; } };
   m.querySelectorAll("[data-x]").forEach(b => b.onclick = async () => { const u = USERS.find(x => x.id === b.dataset.x); if (!confirm("Remove " + u.name + "? They'll be signed out right away.")) return; await api("/api/team/" + u.id, { method: "DELETE" }); toast("Removed"); teamView(); });

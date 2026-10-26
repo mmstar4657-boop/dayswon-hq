@@ -108,7 +108,7 @@ function shell() {
 }
 function setNav(k) { document.querySelectorAll("[data-n]").forEach(a => a.classList.toggle("on", a.dataset.n === k)); }
 function ptop(title, back) { const t = $("#ptop"); if (!t) return; t.innerHTML = back ? `<button class="back" onclick="${back === "hist" ? "history.length>1?history.back():location.hash='#/leads'" : `location.hash='${back}'`}">${ic("back")}${esc(title || "Back")}</button><div class="grow"></div>`
-  : `<div class="logo"><img src="favicon.svg" alt=""><span>Days<i>Won</i></span></div><div class="grow"></div><a class="av" href="#/team" style="color:#fff">${esc(initials(ME.name))}</a>`; }
+  : `<div class="logo"><img src="favicon.svg" alt=""><span>Days<i>Won</i></span></div><div class="grow"></div>${owner() ? `<a class="pgear" href="#/settings" aria-label="Settings" title="Settings">${ic("gear")}</a>` : ""}<a class="av" href="#/team" style="color:#fff">${esc(initials(ME.name))}</a>`; }
 const main = () => $("#main");
 
 // ---------- leads ----------

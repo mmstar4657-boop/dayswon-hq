@@ -301,10 +301,11 @@ async function editor(el, id, withPrev, onChange) {
   const F = (k, lab, type, ph, hint) => `<label class="l" for="e_${k}">${lab}</label>${type === "area" ? `<textarea class="in" id="e_${k}" data-k="${k}" placeholder="${esc(ph || "")}" rows="5">${esc(P[k] || "")}</textarea>` : `<input class="in" id="e_${k}" data-k="${k}" type="${type || "text"}" placeholder="${esc(ph || "")}" value="${esc(P[k] ?? "")}"${type === "number" ? ' inputmode="numeric" min="0"' : ""}>`}${hint ? `<div class="hint">${hint}</div>` : ""}`;
   const hasText = () => ["problem", "solution", "steps"].some(k => (P[k] || "").trim());
   el.innerHTML = `<div class="bar ebar">${LAYOUT === "desk" ? `<a class="btn ghost sm" href="#/proposals">${ic("back")}</a>` : ""}<div class="et" style="min-width:0"><h1 style="overflow:hidden;text-overflow:ellipsis" id="eh">${esc(P.title || "Untitled proposal")}</h1></div><span class="pill ${sc(P.status)}">${PL[P.status]}</span><div class="grow"></div><span class="savest" id="sv">Saved</span>
-      ${withPrev ? "" : `<button class="btn sm" id="pvb">${ic("eye")}Preview</button>`}${own ? `<button class="btn sm" id="pdfb">${ic("pdf")}PDF</button><button class="btn sm pri" id="lnkb">${ic("link")}Client link</button>` : ""}</div>
+      ${withPrev ? "" : `<button class="btn sm" id="pvb">${ic("eye")}Preview</button>`}${own ? `<button class="btn sm" id="pdfb">${ic("pdf")}PDF</button><button class="btn sm" id="emb">${ic("mail")}Send by email</button><button class="btn sm pri" id="lnkb">${ic("link")}Client link</button>` : ""}</div>
    <div class="ed ${withPrev ? "" : "one"}"><div class="form">
     <div class="box"><h3>Status</h3><div class="seg" id="pst">${PST.map(s => `<button class="${s === P.status ? "on" : ""}" data-s="${s}">${PL[s]}</button>`).join("")}</div>
-      <div class="hint" style="margin-top:8px">${P.status === "accepted" ? "Accepted " + fmtDT(P.accepted_at) + (P.accepted_name ? " by " + esc(P.accepted_name) + (P.accepted_company ? ", " + esc(P.accepted_company) : "") : "") : P.status === "sent" ? "Sent " + fmtDT(P.sent_at) + (P.views ? " · client opened it " + P.views + "× (first " + fmtDT(P.viewed_at) + ")" : " · client hasn't opened the link yet") : P.status === "draft" ? "Not sent. Nothing is sent from this app: you send the PDF or link yourself, then mark it Sent." : "Declined " + fmtDT(P.declined_at)}</div>
+      <div class="hint" style="margin-top:8px">${P.status === "accepted" ? "Accepted " + fmtDT(P.accepted_at) + (P.accepted_name ? " by " + esc(P.accepted_name) + (P.accepted_company ? ", " + esc(P.accepted_company) : "") : "") : P.status === "sent" ? "Sent " + fmtDT(P.sent_at) + (P.views ? " · client opened it " + P.views + "× (first " + fmtDT(P.viewed_at) + ")" : " · client hasn't opened the link yet") : P.status === "draft" ? (own ? "Not sent yet. Use Send by email, or send the PDF or link yourself and mark it Sent." : "Not sent yet.") : "Declined " + fmtDT(P.declined_at)}</div>
+      ${own && (d.emails || []).length ? `<div class="hint emh">${ic("mail")}<span>${d.emails.slice(0, 3).map(x => "Emailed to " + esc(x.to_email) + " · " + fmtDT(x.sent_at) + (x.by_name ? " by " + esc(x.by_name) : "")).join("<br>")}${d.emails.length > 3 ? "<br>+" + (d.emails.length - 3) + " earlier" : ""}</span></div>` : ""}
       ${!own ? `<div class="hint">Prices, PDF and the client link are visible to owners only.</div>` : ""}</div>
     <div class="box ai"><h3>${ic("spark")} Draft with AI</h3>${AIREADY ? `<textarea class="in" id="brief" rows="3" placeholder="A few lines: who the client is, what they want, and the price. e.g. Dental office in Brooklyn, 3 chairs, wants missed calls texted back and online booking. $2,500 setup, $400/month, 3 months minimum."></textarea><button class="btn pri" id="aib" style="margin-top:8px">${ic("spark")}Draft with AI</button><div class="hint">Fills every section below. You can edit everything after.</div>`
       : `<button class="btn" disabled>${ic("spark")}Draft with AI</button><div class="hint">${own ? `Add your AI key in <a href="#/settings">Settings</a> to turn this on. Until then, fill in the sections by hand below.` : "Ask an owner to add an AI key in Settings. You can fill in the sections by hand below."}</div>`}<div class="err" id="aie"></div></div>
@@ -358,14 +359,46 @@ async function editor(el, id, withPrev, onChange) {
       const s = sheet(`<h3>PDF ready</h3><p class="muted" style="margin:0;word-break:break-all">${esc(f.name)} · ${Math.round(f.size / 1024)} KB</p>${canShare ? `<button class="btn pri" id="shp">Share PDF…</button>` : ""}<a class="btn ${canShare ? "" : "pri"}" href="${u}" target="_blank" rel="noopener" id="opp">Open PDF</a><a class="btn" href="${u}" download="${esc(f.name)}" id="dlp">Download</a>`);
       const sh = s.querySelector("#shp"); if (sh) sh.onclick = async () => { try { await navigator.share({ files: [f], title: f.name }); } catch (e) { } };
     } catch (e) { toast("Couldn't make the PDF: " + e.message); } pdfb.disabled = false; pdfb.innerHTML = old; };
+  const emailSheet = async () => { await save();
+    if (d.email_ready === false) { toast("Email sending isn't set up yet."); return; }
+    const to0 = P.client_email || (lead && lead.email) || "";
+    const idem = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+    const s = sheet(`<h3>Send by email</h3><p class="muted" style="margin:0">A short email with a button to the proposal. No prices in the email.</p>
+      <label class="l" for="em_to">Client email</label><input class="in" id="em_to" type="email" inputmode="email" autocomplete="off" placeholder="client@company.com" value="${esc(to0)}">
+      <label class="l" for="em_note">Short note (optional)</label><input class="in" id="em_note" type="text" maxlength="300" placeholder="e.g. Great talking today. Here's what we discussed.">
+      <div class="hint">One line, up to 300 characters.</div>
+      <label class="l">Preview</label><div class="emmeta" id="em_meta"></div><div class="emframe"><iframe id="em_if" title="Email preview" sandbox=""></iframe></div>
+      ${P.status === "draft" ? `<div class="hint">Sending marks this proposal Sent${P.lead_id ? " and moves the lead to Proposal sent" : ""}.</div>` : ""}
+      <div class="err" id="em_err"></div><button class="btn pri" id="em_send">${ic("mail")}Send email</button>`);
+    s.querySelector(".sheet").classList.add("wide");
+    const $to = s.querySelector("#em_to"), $note = s.querySelector("#em_note"), $if = s.querySelector("#em_if"), $meta = s.querySelector("#em_meta"), $err = s.querySelector("#em_err"), $send = s.querySelector("#em_send");
+    $note.addEventListener("keydown", e => { if (e.key === "Enter") e.preventDefault(); });
+    $note.addEventListener("paste", () => setTimeout(() => { $note.value = $note.value.replace(/[\r\n]+/g, " "); }, 0));
+    let pt, seq = 0;
+    const okTo = () => /^[^@\s<>,;"']+@[^@\s<>,;"']+\.[a-z]{2,}$/i.test($to.value.trim());
+    const prev = async () => { const n = ++seq; $err.textContent = "";
+      if (!okTo()) { $meta.innerHTML = `<span class="muted">Enter the client's email to see the preview.</span>`; $if.srcdoc = ""; $send.disabled = true; return; }
+      try { const r = await api("/api/proposal/" + id + "/email", { method: "POST", body: { to: $to.value.trim(), note: $note.value, preview: true } }); if (n !== seq) return;
+        const v = r.preview; $meta.innerHTML = `<div><small>From</small>${esc(v.from.replace(/"/g, ""))}</div><div><small>To</small>${esc(v.to)}</div>${v.reply_to ? `<div><small>Replies go to</small>${esc(v.reply_to)}</div>` : ""}<div><small>Subject</small>${esc(v.subject)}</div>`;
+        $if.srcdoc = v.html; $send.disabled = false;
+      } catch (e) { if (n === seq && e.message !== "login") { $err.textContent = e.message; $send.disabled = true; } } };
+    const later = () => { clearTimeout(pt); pt = setTimeout(prev, 450); };
+    $to.oninput = later; $note.oninput = later; prev();
+    $send.onclick = async () => { if (!okTo()) return; $send.disabled = true; $send.textContent = "Sending…"; $err.textContent = "";
+      try { const r = await api("/api/proposal/" + id + "/email", { method: "POST", body: { to: $to.value.trim(), note: $note.value, idem } });
+        s.remove(); toast("Email sent to " + r.to + (r.marked_sent ? " · marked Sent" : "")); changed(); if (r.marked_sent) LEADS = null; editor(el, id, withPrev, onChange);
+      } catch (e) { if (e.message !== "login") { $err.textContent = e.message; $send.disabled = false; $send.innerHTML = ic("mail") + "Send email"; } } };
+  };
+  const emb = el.querySelector("#emb"); if (emb) emb.onclick = emailSheet;
   const lnkb = el.querySelector("#lnkb");
   if (lnkb) lnkb.onclick = async () => { await save();
     const first = (P.client_name || "").split(" ")[0] || "there";
     const mt = "mailto:" + encodeURIComponent(P.client_email || "") + "?subject=" + encodeURIComponent("Proposal: " + (P.title || "your project") + " | DaysWon") + "&body=" + encodeURIComponent(`Hi ${first},\n\nThanks again for your time. Here's our proposal for ${P.title || "your project"}:\n${link}\n\nYou can read it on your phone, download a PDF, and accept it right on the page.\n\nAny questions, just reply here.\n\nBest,\n${BIZ.name || ME.name}\nDaysWon`);
-    const s = sheet(`<h3>Client link</h3><p class="muted" style="margin:0 0 8px">A private, read-only page for ${esc(P.client_name || "the client")} with an Accept button. No login needed. Nothing is sent by the app: you send it yourself.</p>
-      <input class="in" readonly value="${esc(link)}" id="lk" onclick="this.select()"><button class="btn pri" id="cpl">Copy link</button>${navigator.share ? `<button class="btn" id="shl">Share…</button>` : ""}<a class="btn" href="${esc(mt)}" id="eml">Email draft</a><a class="btn" href="${esc(link)}" target="_blank" rel="noopener">Open client page</a>
+    const s = sheet(`<h3>Client link</h3><p class="muted" style="margin:0 0 8px">A private, read-only page for ${esc(P.client_name || "the client")} with an Accept button. No login needed. Send it by email from here, or copy the link and send it yourself.</p>
+      <input class="in" readonly value="${esc(link)}" id="lk" onclick="this.select()"><button class="btn pri" id="emls">${ic("mail")}Send by email</button><button class="btn" id="cpl">Copy link</button>${navigator.share ? `<button class="btn" id="shl">Share…</button>` : ""}<a class="btn" href="${esc(mt)}" id="eml">Email draft</a><a class="btn" href="${esc(link)}" target="_blank" rel="noopener">Open client page</a>
       ${P.status === "draft" ? `<div class="banner info" id="msb" style="margin-top:12px"><span>Sent it to the client?</span><button class="btn sm dark" id="mks">Mark as sent</button></div>` : ""}
       <button class="btn ghost sm" id="rsl" style="height:34px">Make a new link (old one stops working)</button>`);
+    s.querySelector("#emls").onclick = () => { s.remove(); emailSheet(); };
     s.querySelector("#cpl").onclick = async () => { try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { s.querySelector("#lk").select(); document.execCommand("copy"); toast("Link copied"); } };
     const shl = s.querySelector("#shl"); if (shl) shl.onclick = async () => { try { await navigator.share({ title: (P.title || "Proposal") + " · DaysWon", text: "Here's our proposal for " + (P.title || "your project") + ":", url: link }); } catch { } };
     const mks = s.querySelector("#mks"); if (mks) mks.onclick = async () => { try { await api("/api/proposal/" + id, { method: "PATCH", body: { status: "sent" } }); s.remove(); toast(P.lead_id ? "Marked sent · lead moved to Proposal sent" : "Marked sent"); changed(); LEADS = null; editor(el, id, withPrev, onChange); } catch (e) { toast(e.message); } };

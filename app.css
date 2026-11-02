@@ -122,3 +122,11 @@ body.L-phone .tile:last-child{grid-column:1/-1}
 .pwf .eye{position:absolute;top:50%;right:1px;transform:translateY(-50%);width:44px;height:40px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:8px;background:transparent;color:var(--mut);touch-action:manipulation}
 .pwf .eye:hover,.pwf .eye[aria-pressed="true"]{color:var(--navy)}.pwf .eye:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
 .pwf .eye svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* send proposal by email */
+.sheet.wide{max-width:620px;max-height:92vh;overflow:auto}
+.emmeta{border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#fafbfc;padding:8px 12px;font-size:13px;line-height:1.5;word-break:break-word}
+.emmeta div{display:flex;gap:8px}.emmeta small{flex:none;width:96px;color:var(--mut);font-size:12px;padding-top:1px}
+.emframe{border:1px solid var(--line);border-radius:0 0 10px 10px;overflow:hidden;background:#f6f7f9}
+.emframe iframe{display:block;width:100%;height:420px;border:0;background:#f6f7f9}
+.hint.emh{display:flex;gap:6px;align-items:flex-start;margin-top:8px;color:var(--grn)}.hint.emh svg.i{width:16px;height:16px;margin-top:1px}

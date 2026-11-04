@@ -122,3 +122,5 @@ body.L-phone .tile:last-child{grid-column:1/-1}
 .pwf .eye{position:absolute;top:50%;right:1px;transform:translateY(-50%);width:44px;height:40px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:8px;background:transparent;color:var(--mut);touch-action:manipulation}
 .pwf .eye:hover,.pwf .eye[aria-pressed="true"]{color:var(--navy)}.pwf .eye:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
 .pwf .eye svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+.btn.danger:hover{background:#fdeeee}.btn.pdelb.wide{width:100%;margin-top:14px;border-color:#f5c6c8}.btn.delsolid{background:var(--red);border-color:var(--red);color:#fff}.btn.delsolid:hover{background:#d13d42}

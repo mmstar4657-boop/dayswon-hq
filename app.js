@@ -50,7 +50,7 @@ const P_ = {
   plus: '<path d="M12 5v14M5 12h14"/>', back: '<path d="M15 5l-7 7 7 7"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>', menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   call: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2"/>', text: '<path d="M4 5h16v11H9l-5 4z"/>', mail: '<path d="M3 6h18v12H3zM3 7l9 6 9-6"/>',
   pdf: '<path d="M7 3h7l5 5v13H7zM14 3v5h5M12 11v6M9.5 14.5L12 17l2.5-2.5"/>', link: '<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>',
-  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>', search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/>', refresh: '<path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7"/>'
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>', search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/>', refresh: '<path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7"/>', trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'
 };
 const ic = k => `<svg class="i" viewBox="0 0 24 24">${P_[k] || ""}</svg>`;
 function toast(t) { const e = $("#toast"); if (!e) return; e.textContent = t; e.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove("on"), 2000); }
@@ -301,7 +301,7 @@ async function editor(el, id, withPrev, onChange) {
   const F = (k, lab, type, ph, hint) => `<label class="l" for="e_${k}">${lab}</label>${type === "area" ? `<textarea class="in" id="e_${k}" data-k="${k}" placeholder="${esc(ph || "")}" rows="5">${esc(P[k] || "")}</textarea>` : `<input class="in" id="e_${k}" data-k="${k}" type="${type || "text"}" placeholder="${esc(ph || "")}" value="${esc(P[k] ?? "")}"${type === "number" ? ' inputmode="numeric" min="0"' : ""}>`}${hint ? `<div class="hint">${hint}</div>` : ""}`;
   const hasText = () => ["problem", "solution", "steps"].some(k => (P[k] || "").trim());
   el.innerHTML = `<div class="bar ebar">${LAYOUT === "desk" ? `<a class="btn ghost sm" href="#/proposals">${ic("back")}</a>` : ""}<div class="et" style="min-width:0"><h1 style="overflow:hidden;text-overflow:ellipsis" id="eh">${esc(P.title || "Untitled proposal")}</h1></div><span class="pill ${sc(P.status)}">${PL[P.status]}</span><div class="grow"></div><span class="savest" id="sv">Saved</span>
-      ${withPrev ? "" : `<button class="btn sm" id="pvb">${ic("eye")}Preview</button>`}${own ? `<button class="btn sm" id="pdfb">${ic("pdf")}PDF</button><button class="btn sm pri" id="lnkb">${ic("link")}Client link</button>` : ""}</div>
+      ${withPrev ? "" : `<button class="btn sm" id="pvb">${ic("eye")}Preview</button>`}${own ? `<button class="btn sm" id="pdfb">${ic("pdf")}PDF</button><button class="btn sm pri" id="lnkb">${ic("link")}Client link</button><button class="btn sm danger pdelb" id="pdelt" title="Delete proposal" aria-label="Delete proposal">${ic("trash")}</button>` : ""}</div>
    <div class="ed ${withPrev ? "" : "one"}"><div class="form">
     <div class="box"><h3>Status</h3><div class="seg" id="pst">${PST.map(s => `<button class="${s === P.status ? "on" : ""}" data-s="${s}">${PL[s]}</button>`).join("")}</div>
       <div class="hint" style="margin-top:8px">${P.status === "accepted" ? "Accepted " + fmtDT(P.accepted_at) + (P.accepted_name ? " by " + esc(P.accepted_name) + (P.accepted_company ? ", " + esc(P.accepted_company) : "") : "") : P.status === "sent" ? "Sent " + fmtDT(P.sent_at) + (P.views ? " · client opened it " + P.views + "× (first " + fmtDT(P.viewed_at) + ")" : " · client hasn't opened the link yet") : P.status === "draft" ? "Not sent. Nothing is sent from this app: you send the PDF or link yourself, then mark it Sent." : "Declined " + fmtDT(P.declined_at)}</div>
@@ -318,7 +318,7 @@ async function editor(el, id, withPrev, onChange) {
       <div class="hint" id="payh"></div>${F("price_notes", "Pricing notes", "area", "What the setup and monthly fee include; third-party costs.")}</div><div class="box" id="bill"></div>` : ""}
     <div class="box"><h3>Terms</h3>${F("valid_until", "Valid until", "date")}${F("terms", "Terms", "area", "")}<button class="btn sm" id="dterms" style="margin-top:8px">Reset to DaysWon default terms</button></div>
     <div class="box"><h3>History</h3>${d.events.map(e => `<div class="note log"><small>${esc(e.user_name || "")} · ${fmtDT(e.at)}</small>${esc(e.text)}</div>`).join("") || `<div class="muted">Nothing yet.</div>`}
-      ${own ? `<button class="btn ghost danger sm" id="pdel" style="margin-top:10px">Delete proposal</button>` : ""}</div>
+      ${own ? `<button class="btn danger pdelb wide" id="pdel">${ic("trash")}Delete proposal</button>` : ""}</div>
    </div>${withPrev ? `<div class="prev" id="pv"></div>` : ""}</div>`;
   el.querySelectorAll("textarea.in[data-k]").forEach(t => { t.rows = Math.min(14, Math.max(4, (t.value.match(/\n/g) || []).length + 2)); });
   const pv = el.querySelector("#pv");
@@ -349,8 +349,12 @@ async function editor(el, id, withPrev, onChange) {
     } catch (e) { er.textContent = e.message; aib.disabled = false; aib.innerHTML = ic("spark") + "Draft with AI"; } };
   const pvb = el.querySelector("#pvb");
   if (pvb) pvb.onclick = () => { const m = document.createElement("div"); m.className = "prevmodal"; m.innerHTML = `<button class="btn dark x">${ic("x")}Close</button><div style="max-width:760px;margin:0 auto;padding:0 ${LAYOUT === "phone" ? 0 : 16}px">${DWView.html(P, BIZ)}</div>`; m.querySelector(".x").onclick = () => m.remove(); document.body.appendChild(m); };
-  const pdel = el.querySelector("#pdel");
-  if (pdel) pdel.onclick = async () => { if (!confirm("Delete this proposal? Its client link stops working.")) return; await api("/api/proposal/" + id, { method: "DELETE" }); PROPS = null; toast("Deleted"); location.hash = "#/proposals"; };
+  const delAsk = () => { const bg = sheet(`<h3>Delete this proposal?</h3><p class="muted" style="margin:6px 0 0">“${esc(P.title || "Untitled proposal")}” will be removed for good, and its client link stops working. This can't be undone.</p><div class="err" id="dle"></div><button class="btn delsolid" id="dlok">${ic("trash")}Delete proposal</button>`);
+    const ok = bg.querySelector("#dlok");
+    ok.onclick = async () => { ok.disabled = true; ok.textContent = "Deleting…"; clearTimeout(tm); pend = {};
+      try { await api("/api/proposal/" + id, { method: "DELETE" }); bg.remove(); PROPS = null; toast("Proposal deleted"); if (P.lead_id) LEADS = null; location.hash = "#/proposals"; }
+      catch (e) { if (e.message === "login") { bg.remove(); return; } ok.disabled = false; ok.innerHTML = ic("trash") + "Delete proposal"; bg.querySelector("#dle").textContent = e.message; } }; };
+  el.querySelectorAll("#pdel, #pdelt").forEach(b => b.onclick = delAsk);
   const pdfb = el.querySelector("#pdfb");
   if (pdfb) pdfb.onclick = async () => { await save(); pdfb.disabled = true; const old = pdfb.innerHTML; pdfb.textContent = "Making PDF…";
     try { await loadScript("pdf-lib.min.js"); await loadScript("proposal-pdf.js?v=7"); const f = await DWPdf.file(P, BIZ); const u = URL.createObjectURL(f);
